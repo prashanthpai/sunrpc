@@ -34,11 +34,13 @@ func main() {
 	programVersion := uint32(1)
 
 	// TODO: Automate this by parsing the .x file ?
-	_ = sunrpc.RegisterProcedure(programNumber, programVersion, uint32(1), "Arith.Add")
-	_ = sunrpc.RegisterProcedure(programNumber, programVersion, uint32(2), "Arith.Multiply")
+	_ = sunrpc.RegisterProcedure(sunrpc.ProcedureID{programNumber, programVersion, uint32(1)}, "Arith.Add")
+	_ = sunrpc.RegisterProcedure(sunrpc.ProcedureID{programNumber, programVersion, uint32(2)}, "Arith.Multiply")
+
+	sunrpc.DumpProcedureRegistry()
 
 	// TODO: Get port from portmapper
-	listener, err := net.Listen("tcp", "127.0.0.1:60211")
+	listener, err := net.Listen("tcp", "127.0.0.1:34217")
 	if err != nil {
 		log.Fatal("net.Listen() failed: ", err)
 	}

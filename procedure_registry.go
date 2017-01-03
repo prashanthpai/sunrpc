@@ -6,6 +6,7 @@ package sunrpc
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"unicode"
@@ -18,17 +19,23 @@ From RFC 5531:
     program number, remote program version number, and remote procedure
     number -- that uniquely identify the procedure to be called.
 */
-type procedureKey struct {
-	programNumber   uint32
-	programVersion  uint32
-	procedureNumber uint32
+
+// ProcedureID uniquely identifies a remote procedure
+type ProcedureID struct {
+	ProgramNumber   uint32
+	ProgramVersion  uint32
+	ProcedureNumber uint32
 }
 
+// pMap is looked up in ServerCodec to map ProcedureID to method name.
+// rMap is looked up in ClientCodec to map method name to ProcedureID.
 var procedureRegistry = struct {
 	sync.RWMutex
-	pMap map[procedureKey]string
+	pMap map[ProcedureID]string
+	rMap map[string]ProcedureID
 }{
-	pMap: make(map[procedureKey]string),
+	pMap: make(map[ProcedureID]string),
+	rMap: make(map[string]ProcedureID),
 }
 
 func isExported(name string) bool {
@@ -55,8 +62,8 @@ func isValidProcedureName(procedureName string) bool {
 }
 
 // RegisterProcedure will register the procedure name which will be uniquely
-// indentified by (programNumber, programVersion, procedureNumber) pair.
-func RegisterProcedure(programNumber uint32, programVersion uint32, procedureNumber uint32, procedureName string) error {
+// indentified by (ProgramNumber, ProgramVersion, ProcedureNumber) pair.
+func RegisterProcedure(procedureID ProcedureID, procedureName string) error {
 
 	if !isValidProcedureName(procedureName) {
 		return errors.New("Invalid procedure name")
@@ -65,18 +72,40 @@ func RegisterProcedure(programNumber uint32, programVersion uint32, procedureNum
 	procedureRegistry.Lock()
 	defer procedureRegistry.Unlock()
 
-	key := procedureKey{programNumber, programVersion, procedureNumber}
-	procedureRegistry.pMap[key] = procedureName
+	procedureRegistry.pMap[procedureID] = procedureName
+	// Create reverse mapping too
+	procedureRegistry.rMap[procedureName] = procedureID
 	return nil
 }
 
 // GetProcedureName will return a string containing procedure name and a bool
 // value which is set to true only if the procedure is found in registry.
-func GetProcedureName(programNumber uint32, programVersion uint32, procedureNumber uint32) (string, bool) {
+func GetProcedureName(procedureID ProcedureID) (string, bool) {
 	procedureRegistry.RLock()
 	defer procedureRegistry.RUnlock()
 
-	key := procedureKey{programNumber, programVersion, procedureNumber}
-	procedureName, ok := procedureRegistry.pMap[key]
+	procedureName, ok := procedureRegistry.pMap[procedureID]
 	return procedureName, ok
+}
+
+// GetProcedureID will return a struct containing (ProgramNumber, ProgramVersion, ProcedureNumber)
+// pair, given the method name. It also returns a bool which is set to true only if the procedure
+// is found in registry.
+func GetProcedureID(procedureName string) (ProcedureID, bool) {
+	procedureRegistry.RLock()
+	defer procedureRegistry.RUnlock()
+
+	procedureID, ok := procedureRegistry.rMap[procedureName]
+	return procedureID, ok
+}
+
+// DumpProcedureRegistry will print the entire procedure map.
+// Use this for logging/debugging.
+func DumpProcedureRegistry() {
+	procedureRegistry.RLock()
+	defer procedureRegistry.RUnlock()
+
+	for key, value := range procedureRegistry.rMap {
+		fmt.Printf("%s : %+v\n", key, value)
+	}
 }
