@@ -44,7 +44,8 @@ func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
 
 	// Set req.Seq and req.ServiceMethod
 	req.Seq = uint64(payload.Header.Xid)
-	procedureName, ok := GetProcedureName(payload.Body.Program, payload.Body.Version, payload.Body.Procedure)
+	procedureID := ProcedureID{payload.Body.Program, payload.Body.Version, payload.Body.Procedure}
+	procedureName, ok := GetProcedureName(procedureID)
 	if ok {
 		req.ServiceMethod = procedureName
 	} else {
