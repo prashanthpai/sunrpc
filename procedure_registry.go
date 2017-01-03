@@ -99,6 +99,28 @@ func GetProcedureID(procedureName string) (ProcedureID, bool) {
 	return procedureID, ok
 }
 
+// RemoveProcedure takes a string or ProcedureID struct as argument and deletes
+// the corresponding procedure from procedure registry.
+func RemoveProcedure(procedure interface{}) {
+	procedureRegistry.Lock()
+	defer procedureRegistry.Unlock()
+
+	switch p := procedure.(type) {
+	case string:
+		procedureID, ok := procedureRegistry.rMap[p]
+		if ok {
+			delete(procedureRegistry.pMap, procedureID)
+			delete(procedureRegistry.rMap, p)
+		}
+	case ProcedureID:
+		procedureName, ok := procedureRegistry.pMap[p]
+		if ok {
+			delete(procedureRegistry.pMap, p)
+			delete(procedureRegistry.rMap, procedureName)
+		}
+	}
+}
+
 // DumpProcedureRegistry will print the entire procedure map.
 // Use this for logging/debugging.
 func DumpProcedureRegistry() {
