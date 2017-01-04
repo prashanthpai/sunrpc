@@ -76,7 +76,7 @@ type OpaqueAuth struct {
 	Body    []byte
 }
 
-type RPCMessage struct {
+type RPCMessageHeader struct {
 	Xid  uint32
 	Type MsgType
 }
@@ -90,16 +90,60 @@ type CallBody struct {
 	Vers       OpaqueAuth
 }
 
-type ReplyBody struct {
-	Stat ReplyStat
-}
-
-type CallPayload struct {
-	Header RPCMessage
+type RPCMsgCall struct {
+	Header RPCMessageHeader
 	Body   CallBody
+	// procedure-specific parameters start here
 }
 
-type ReplyPayload struct {
-	Verf OpaqueAuth
-	Stat AcceptStat
+// Section 9 of RFC 5531  uses discriminated union to specify procedure reply.
+// Section 4.15 of RFC 4506 defines XDR representation of discriminated union.
+// However, this is not provided by xdr package in go yet. As a simple
+// workaround, created multiple reply templates here.
+
+// MsgAccepted cases
+
+type MsgAcceptedSuccess struct {
+	Header RPCMessageHeader
+	Type   ReplyStat // MsgAccepted
+	Verf   OpaqueAuth
+	Stat   AcceptStat // Success
+	// procedure-specific results start here
+}
+
+type MsgAcceptedProgMismatch struct {
+	Header       RPCMessageHeader
+	Type         ReplyStat // MsgAccepted
+	Verf         OpaqueAuth
+	Stat         AcceptStat // ProgMismatch
+	MismatchInfo struct {
+		Low  uint32
+		High uint32
+	}
+}
+
+type MsgAcceptedOtherError struct {
+	Header RPCMessageHeader
+	Type   ReplyStat // MsgAccepted
+	Verf   OpaqueAuth
+	Stat   AcceptStat // ProgUnavail, ProcUnavail, GarbageArgs, SystemErr
+}
+
+// MsgDenied Cases
+
+type MsgDeniedRPCMismatch struct {
+	Header       RPCMessageHeader
+	Type         ReplyStat  // MsgDenied
+	Stat         RejectStat // RPCMismatch
+	MismatchInfo struct {
+		Low  uint32
+		High uint32
+	}
+}
+
+type MsgDeniedAuthError struct {
+	Header   RPCMessageHeader
+	Type     ReplyStat  // MsgDenied
+	Stat     RejectStat // AuthError
+	AuthStat AuthStat
 }

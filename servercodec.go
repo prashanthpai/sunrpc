@@ -32,7 +32,7 @@ func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
 	c.recordReader = bytes.NewReader(record)
 
 	// Unmarshall RPC message
-	var payload CallPayload
+	var payload RPCMsgCall
 	bytesRead, err := xdr.Unmarshal(c.recordReader, &payload)
 	if err != nil {
 		fmt.Println("xdr.Unmarshal() failed: ", err)

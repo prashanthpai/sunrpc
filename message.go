@@ -14,24 +14,20 @@ import (
 func CreateReplyMessage(xid uint32, result interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 
-	rpcHeader := RPCMessage{
-		Xid:  xid,
-		Type: Reply,
+	replyMessage := MsgAcceptedSuccess{
+		Header: RPCMessageHeader{
+			Xid:  xid,
+			Type: Reply,
+		},
+		Type: MsgAccepted,
+		Stat: Success,
 	}
 
-	if _, err := xdr.Marshal(&buf, rpcHeader); err != nil {
+	if _, err := xdr.Marshal(&buf, replyMessage); err != nil {
 		return nil, err
 	}
 
-	if _, err := xdr.Marshal(&buf, ReplyBody{Stat: MsgAccepted}); err != nil {
-		return nil, err
-	}
-
-	if _, err := xdr.Marshal(&buf, ReplyPayload{Stat: Success}); err != nil {
-		return nil, err
-	}
-
-	// Marshall and fill actual reply into the buffer
+	// Marshall and fill procedure-specific reply into the buffer
 	if _, err := xdr.Marshal(&buf, result); err != nil {
 		return nil, err
 	}
