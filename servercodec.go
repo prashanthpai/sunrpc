@@ -10,7 +10,7 @@ import (
 	"io"
 	"net/rpc"
 
-	"github.com/davecgh/go-xdr/xdr2"
+	"github.com/rasky/go-xdr/xdr2"
 )
 
 type serverCodec struct {

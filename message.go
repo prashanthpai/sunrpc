@@ -7,20 +7,22 @@ package sunrpc
 import (
 	"bytes"
 
-	"github.com/davecgh/go-xdr/xdr2"
+	"github.com/rasky/go-xdr/xdr2"
 )
 
 // CreateReplyMessage will create an RPC reply message
 func CreateReplyMessage(xid uint32, result interface{}) ([]byte, error) {
 	var buf bytes.Buffer
 
-	replyMessage := MsgAcceptedSuccess{
+	replyMessage := RPCMsgReply{
 		Header: RPCMessageHeader{
 			Xid:  xid,
 			Type: Reply,
 		},
-		Type: MsgAccepted,
-		Stat: Success,
+		Stat: MsgAccepted,
+		Areply: AcceptedReply{
+			Stat: Success,
+		},
 	}
 
 	if _, err := xdr.Marshal(&buf, replyMessage); err != nil {

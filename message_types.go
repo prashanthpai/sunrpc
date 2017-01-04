@@ -28,7 +28,7 @@ type AcceptStat int32
 const (
 	Success AcceptStat = iota
 	ProgUnavail
-	ProgMismatch
+	ProgMismatch // 2
 	ProcUnavail
 	GarbageArgs
 	SystemErr
@@ -81,6 +81,8 @@ type RPCMessageHeader struct {
 	Type MsgType
 }
 
+/* CALL structs */
+
 type CallBody struct {
 	RPCVersion uint32
 	Program    uint32
@@ -96,54 +98,30 @@ type RPCMsgCall struct {
 	// procedure-specific parameters start here
 }
 
-// Section 9 of RFC 5531  uses discriminated union to specify procedure reply.
-// Section 4.15 of RFC 4506 defines XDR representation of discriminated union.
-// However, this is not provided by xdr package in go yet. As a simple
-// workaround, created multiple reply templates here.
+/* REPLY structs */
 
-// MsgAccepted cases
+// MismatchReply is used for ProgMismatch and RPCMismatch
+type MismatchReply struct {
+	Low  uint32
+	High uint32
+}
 
-type MsgAcceptedSuccess struct {
-	Header RPCMessageHeader
-	Type   ReplyStat // MsgAccepted
-	Verf   OpaqueAuth
-	Stat   AcceptStat // Success
+type AcceptedReply struct {
+	Verf         OpaqueAuth
+	Stat         AcceptStat    `xdr:"union"`
+	MismatchInfo MismatchReply `xdr:"unioncase=2"` // ProgMismatch
 	// procedure-specific results start here
 }
 
-type MsgAcceptedProgMismatch struct {
-	Header       RPCMessageHeader
-	Type         ReplyStat // MsgAccepted
-	Verf         OpaqueAuth
-	Stat         AcceptStat // ProgMismatch
-	MismatchInfo struct {
-		Low  uint32
-		High uint32
-	}
+type RejectedReply struct {
+	Stat         RejectStat    `xdr:"union"`
+	MismatchInfo MismatchReply `xdr:"unioncase=0"` // RPCMismatch
+	AuthStat     AuthStat      `xdr:"unioncase=1"` // AuthError
 }
 
-type MsgAcceptedOtherError struct {
+type RPCMsgReply struct {
 	Header RPCMessageHeader
-	Type   ReplyStat // MsgAccepted
-	Verf   OpaqueAuth
-	Stat   AcceptStat // ProgUnavail, ProcUnavail, GarbageArgs, SystemErr
-}
-
-// MsgDenied Cases
-
-type MsgDeniedRPCMismatch struct {
-	Header       RPCMessageHeader
-	Type         ReplyStat  // MsgDenied
-	Stat         RejectStat // RPCMismatch
-	MismatchInfo struct {
-		Low  uint32
-		High uint32
-	}
-}
-
-type MsgDeniedAuthError struct {
-	Header   RPCMessageHeader
-	Type     ReplyStat  // MsgDenied
-	Stat     RejectStat // AuthError
-	AuthStat AuthStat
+	Stat   ReplyStat     `xdr:"union"`
+	Areply AcceptedReply `xdr:"unioncase=0"`
+	Rreply RejectedReply `xdr:"unioncase=1"`
 }
