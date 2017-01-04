@@ -15,7 +15,12 @@ import (
 
 type serverCodec struct {
 	conn         io.ReadWriteCloser
-	recordReader io.Reader
+	recordReader io.Reader // Make this a map[uint64]io.Reader ?
+}
+
+// NewServerCodec returns a new rpc.ServerCodec using Sun RPC on conn
+func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
+	return &serverCodec{conn: conn}
 }
 
 func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
@@ -90,9 +95,4 @@ func (c *serverCodec) WriteResponse(resp *rpc.Response, result interface{}) erro
 
 func (c *serverCodec) Close() error {
 	return c.conn.Close()
-}
-
-// NewServerCodec returns a new rpc.ServerCodec using Sun RPC on conn
-func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
-	return &serverCodec{conn: conn}
 }
