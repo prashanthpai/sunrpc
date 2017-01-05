@@ -67,6 +67,7 @@ func WriteFullRecord(conn io.Writer, data []byte) (int64, error) {
 	var totalBytesWritten int64
 	var lastFragment bool
 
+	fragmentHeaderBytes := make([]byte, 4)
 	for {
 		remainingBytes := dataSize - totalBytesWritten
 		if remainingBytes <= maxRecordFragmentSize {
@@ -74,19 +75,34 @@ func WriteFullRecord(conn io.Writer, data []byte) (int64, error) {
 		}
 		fragmentSize := uint32(minOf(maxRecordFragmentSize, remainingBytes))
 
-		// Create and write fragment header
-		fragmentHeader := createFragmentHeader(fragmentSize, lastFragment)
-		err := binary.Write(conn, binary.BigEndian, fragmentHeader)
-		if err != nil {
-			return totalBytesWritten, err
+		// Create fragment header
+		binary.BigEndian.PutUint32(fragmentHeaderBytes, createFragmentHeader(fragmentSize, lastFragment))
+
+		// Create buffer. Why ? There is weird bug in implementation
+		// of rpcbind. If rpcbind revieves record fragment header and
+		// fragment body in different TCP segments, then rpcbind closes
+		// the client connection. This can be observed using tcpdump
+		// captures.
+		buffer := bytes.NewBuffer(make([]byte, 0, 4+int(fragmentSize)))
+
+		// Copy fragment header to buffer
+		bytesCopied, err := io.CopyN(buffer, bytes.NewReader(fragmentHeaderBytes), int64(4))
+		if err != nil || (bytesCopied != int64(4)) {
+			return 0, ErrCopyingToBuffer
 		}
 
-		// Write fragment body (data) to network
-		bytesWritten, err := io.CopyN(conn, dataReader, int64(fragmentSize))
-		if err != nil || (bytesWritten != int64(fragmentSize)) {
-			return totalBytesWritten, ErrWritingRecordFragment
+		// Copy fragment body to buffer
+		bytesCopied, err = io.CopyN(buffer, dataReader, int64(fragmentSize))
+		if err != nil || (bytesCopied != int64(fragmentSize)) {
+			return 0, ErrCopyingToBuffer
 		}
-		totalBytesWritten += bytesWritten
+
+		// Write buffer to network
+		bytesWritten, err := conn.Write(buffer.Bytes())
+		if err != nil {
+			return int64(totalBytesWritten), err
+		}
+		totalBytesWritten += int64(bytesWritten)
 
 		if lastFragment {
 			break

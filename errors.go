@@ -10,6 +10,7 @@ import (
 
 var (
 	ErrInvalidFragmentSize     = errors.New("The RPC fragment size is invalid")
+	ErrCopyingToBuffer         = errors.New("Error copying to buffer")
 	ErrReadingRecordFragment   = errors.New("Error reading RPC record fragment from network")
 	ErrWritingRecordFragment   = errors.New("Error writing RPC record fragment to network")
 	ErrWritingRecord           = errors.New("Error writing RPC record to network")

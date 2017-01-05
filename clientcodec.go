@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"net"
 	"net/rpc"
 
 	"github.com/rasky/go-xdr/xdr2"
@@ -93,6 +95,12 @@ func (c *clientCodec) ReadResponseHeader(resp *rpc.Response) error {
 
 func (c *clientCodec) ReadResponseBody(result interface{}) error {
 
+	if result == nil {
+		// drain it out ?
+		_, _ = ioutil.ReadAll(c.recordReader)
+		return nil
+	}
+
 	_, err := xdr.Unmarshal(c.recordReader, &result)
 	if err != nil {
 		fmt.Println("xdr.Unmarshal() failed: ", err)
@@ -103,5 +111,8 @@ func (c *clientCodec) ReadResponseBody(result interface{}) error {
 }
 
 func (c *clientCodec) Close() error {
+	if tc, ok := c.conn.(*net.TCPConn); ok {
+		return tc.CloseRead()
+	}
 	return c.conn.Close()
 }
