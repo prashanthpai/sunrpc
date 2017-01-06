@@ -9,17 +9,17 @@
 
 
 void
-arith_prog_1(char *host)
+arith_prog_1()
 {
 	CLIENT *clnt;
 	int  *result_1;
-	intpair  add_1_arg = {2,3};
+	intpair  add_1_arg = {7,8};
 	int  *result_2;
-	intpair  multiply_1_arg = {2,3};
+	intpair  multiply_1_arg = {7,8};
 
-	clnt = clnt_create (host, ARITH_PROG, ARITH_VERS, "tcp");
+	clnt = clnt_create ("localhost", ARITH_PROG, ARITH_VERS, "tcp");
 	if (clnt == NULL) {
-		clnt_pcreateerror (host);
+		clnt_pcreateerror ("localhost");
 		exit (1);
 	}
 
@@ -42,13 +42,6 @@ arith_prog_1(char *host)
 int
 main (int argc, char *argv[])
 {
-	char *host;
-
-	if (argc < 2) {
-		printf ("usage: %s server_host\n", argv[0]);
-		exit (1);
-	}
-	host = argv[1];
-	arith_prog_1 (host);
-exit (0);
+	arith_prog_1 ();
+	return 0;
 }

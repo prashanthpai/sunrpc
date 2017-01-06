@@ -85,8 +85,8 @@ func (c *serverCodec) WriteResponse(resp *rpc.Response, result interface{}) erro
 		return ErrCreatingRPCReplyMessage
 	}
 
-	bytesWritten, err := WriteFullRecord(c.conn, rpcMessage)
-	if err != nil || (bytesWritten != int64(len(rpcMessage))) {
+	_, err = WriteFullRecord(c.conn, rpcMessage)
+	if err != nil {
 		return ErrWritingRecord
 	}
 
