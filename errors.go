@@ -6,13 +6,37 @@ package sunrpc
 
 import (
 	"errors"
+	"fmt"
 )
 
+// Internal errors
 var (
-	ErrInvalidFragmentSize     = errors.New("The RPC fragment size is invalid")
-	ErrCopyingToBuffer         = errors.New("Error copying to buffer")
-	ErrReadingRecordFragment   = errors.New("Error reading RPC record fragment from network")
-	ErrWritingRecordFragment   = errors.New("Error writing RPC record fragment to network")
-	ErrWritingRecord           = errors.New("Error writing RPC record to network")
-	ErrCreatingRPCReplyMessage = errors.New("Could not create RPC message reply")
+	ErrInvalidFragmentSize = errors.New("The RPC fragment size is invalid")
+)
+
+// RPC errors
+
+type ErrRPCMismatch struct {
+	Low  uint32
+	High uint32
+}
+
+func (e *ErrRPCMismatch) Error() string {
+	return fmt.Sprintf("RPC version not supported by server. Lowest and highest supported versions are %d and %d respectively", e.Low, e.High)
+}
+
+type ErrProgMismatch struct {
+	Low  uint32
+	High uint32
+}
+
+func (e *ErrProgMismatch) Error() string {
+	return fmt.Sprintf("Program version not supported. Lowest and highest supported versions are %d and %d respectively", e.Low, e.High)
+}
+
+var (
+	ErrProgUnavail = errors.New("Remote server has not exported program")
+	ErrProcUnavail = errors.New("Remote server has no such procedure")
+	ErrGarbageArgs = errors.New("Remote procedure cannot decode params")
+	ErrSystemErr   = errors.New("System error on remote server")
 )

@@ -88,13 +88,13 @@ func WriteFullRecord(conn io.Writer, data []byte) (int64, error) {
 		// Copy fragment header to buffer
 		bytesCopied, err := io.CopyN(buffer, bytes.NewReader(fragmentHeaderBytes), int64(4))
 		if err != nil || (bytesCopied != int64(4)) {
-			return 0, ErrCopyingToBuffer
+			return 0, err
 		}
 
 		// Copy fragment body to buffer
 		bytesCopied, err = io.CopyN(buffer, dataReader, int64(fragmentSize))
 		if err != nil || (bytesCopied != int64(fragmentSize)) {
-			return 0, ErrCopyingToBuffer
+			return 0, err
 		}
 
 		// Write buffer to network
@@ -133,7 +133,7 @@ func ReadFullRecord(conn io.Reader) ([]byte, error) {
 		// Copy fragment body (data) from network to buffer
 		bytesCopied, err := io.CopyN(record, conn, int64(fragmentSize))
 		if err != nil || (bytesCopied != int64(fragmentSize)) {
-			return nil, ErrReadingRecordFragment
+			return nil, err
 		}
 
 		if isLastFragment(fragmentHeader) {

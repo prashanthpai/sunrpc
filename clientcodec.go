@@ -6,7 +6,6 @@ package sunrpc
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net"
 	"net/rpc"
@@ -56,7 +55,7 @@ func (c *clientCodec) WriteRequest(req *rpc.Request, param interface{}) error {
 
 	procedureID, ok := GetProcedureID(req.ServiceMethod)
 	if !ok {
-		// Reply with standard RPC error
+		return ErrProcUnavail
 	}
 
 	c.mutex.Lock()
@@ -78,19 +77,17 @@ func (c *clientCodec) WriteRequest(req *rpc.Request, param interface{}) error {
 
 	payload := new(bytes.Buffer)
 
-	_, err := xdr.Marshal(payload, &rpcBody)
-	if err != nil {
+	if _, err := xdr.Marshal(payload, &rpcBody); err != nil {
 		return err
 	}
 
 	// Marshall actual params/args of the remote procedure
-	_, err = xdr.Marshal(payload, &param)
-	if err != nil {
+	if _, err := xdr.Marshal(payload, &param); err != nil {
 		return err
 	}
 
 	// Write payload to network
-	_, err = WriteFullRecord(c.conn, payload.Bytes())
+	_, err := WriteFullRecord(c.conn, payload.Bytes())
 	if err != nil {
 		return err
 	}
@@ -103,27 +100,22 @@ func (c *clientCodec) ReadResponseHeader(resp *rpc.Response) error {
 	// Read entire RPC message from network
 	record, err := ReadFullRecord(c.conn)
 	if err != nil {
-		if err != io.EOF {
-			fmt.Println("ReadFullRecord() failed: ", err)
-		}
 		return err
 	}
 
 	c.recordReader = bytes.NewReader(record)
 
-	// Unmarshall record into reply payload
+	// Unmarshal record as RPC reply
 	var reply RPCMsgReply
-	_, err = xdr.Unmarshal(c.recordReader, &reply)
-	if err != nil {
-		fmt.Println("xdr.Unmarshal() failed: ", err)
+	if _, err = xdr.Unmarshal(c.recordReader, &reply); err != nil {
 		return err
 	}
 
 	// Unpack rpc.Request.Seq and set rpc.Request.ServiceMethod
 	resp.Seq = uint64(reply.Header.Xid)
 	c.mutex.Lock()
-	resp.ServiceMethod = c.pending[uint64(reply.Header.Xid)]
-	delete(c.pending, uint64(reply.Header.Xid))
+	resp.ServiceMethod = c.pending[resp.Seq]
+	delete(c.pending, resp.Seq)
 	c.mutex.Unlock()
 
 	return nil
@@ -136,9 +128,7 @@ func (c *clientCodec) ReadResponseBody(result interface{}) error {
 		return nil
 	}
 
-	_, err := xdr.Unmarshal(c.recordReader, &result)
-	if err != nil {
-		fmt.Println("xdr.Unmarshal() failed: ", err)
+	if _, err := xdr.Unmarshal(c.recordReader, &result); err != nil {
 		return err
 	}
 

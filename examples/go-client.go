@@ -45,8 +45,6 @@ func main() {
 	}
 	fmt.Printf("Arith Add: %d + %d = %d\n", args.A, args.B, reply)
 
-	// TODO: Hangs here. Figure out why...
-
 	err = client.Call("Arith.Multiply", args, &reply)
 	if err != nil {
 		log.Fatal("client.Call() failed: ", err)

@@ -28,9 +28,6 @@ func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
 	// Read entire RPC message from network
 	record, err := ReadFullRecord(c.conn)
 	if err != nil {
-		if err != io.EOF {
-			fmt.Println("ReadFullRecord() failed: ", err)
-		}
 		return err
 	}
 
@@ -40,7 +37,6 @@ func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
 	var payload RPCMsgCall
 	bytesRead, err := xdr.Unmarshal(c.recordReader, &payload)
 	if err != nil {
-		fmt.Println("xdr.Unmarshal() failed: ", err)
 		return err
 	}
 
@@ -63,11 +59,11 @@ func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
 func (c *serverCodec) ReadRequestBody(funcArgs interface{}) error {
 
 	if funcArgs == nil {
+		// read and drain it out ?
 		return nil
 	}
 
-	_, err := xdr.Unmarshal(c.recordReader, &funcArgs)
-	if err != nil {
+	if _, err := xdr.Unmarshal(c.recordReader, &funcArgs); err != nil {
 		return err
 	}
 
@@ -76,18 +72,33 @@ func (c *serverCodec) ReadRequestBody(funcArgs interface{}) error {
 
 func (c *serverCodec) WriteResponse(resp *rpc.Response, result interface{}) error {
 
-	// The net/rpc package specifies Request.Seq and Response.Seq as uint64
-	// but the XID shall always be uint32, so this should be okay.
-	xid := uint32(resp.Seq)
+	var buf bytes.Buffer
 
-	rpcMessage, err := CreateReplyMessage(xid, result)
-	if err != nil {
-		return ErrCreatingRPCReplyMessage
+	// TODO: Error handling and error reply
+
+	replyMessage := RPCMsgReply{
+		Header: RPCMessageHeader{
+			Xid:  uint32(resp.Seq),
+			Type: Reply,
+		},
+		Stat: MsgAccepted,
+		Areply: AcceptedReply{
+			Stat: Success,
+		},
 	}
 
-	_, err = WriteFullRecord(c.conn, rpcMessage)
-	if err != nil {
-		return ErrWritingRecord
+	if _, err := xdr.Marshal(&buf, replyMessage); err != nil {
+		return err
+	}
+
+	// Marshal and fill procedure-specific reply into the buffer
+	if _, err := xdr.Marshal(&buf, result); err != nil {
+		return err
+	}
+
+	// Write buffer contents to network
+	if _, err := WriteFullRecord(c.conn, buf.Bytes()); err != nil {
+		return err
 	}
 
 	return nil
