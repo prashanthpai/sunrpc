@@ -6,8 +6,8 @@ package sunrpc
 
 import (
 	"bytes"
-	"fmt"
 	"io"
+	"log"
 	"net/rpc"
 
 	"github.com/rasky/go-xdr/xdr2"
@@ -15,7 +15,7 @@ import (
 
 type serverCodec struct {
 	conn         io.ReadWriteCloser
-	recordReader io.Reader // Make this a map[uint64]io.Reader ?
+	recordReader io.Reader
 }
 
 // NewServerCodec returns a new rpc.ServerCodec using Sun RPC on conn
@@ -24,33 +24,46 @@ func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
 }
 
 func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
+	// FIXME:
+	// Errors returned here aren't relayed back to client via WriteResponse
+	// Will need some minor changes in net/rpc package to support this.
 
 	// Read entire RPC message from network
 	record, err := ReadFullRecord(c.conn)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
 	c.recordReader = bytes.NewReader(record)
 
 	// Unmarshall RPC message
-	var payload RPCMsgCall
-	bytesRead, err := xdr.Unmarshal(c.recordReader, &payload)
+	var call RPCMsgCall
+	bytesRead, err := xdr.Unmarshal(c.recordReader, &call)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
+	if call.Header.Type != Call {
+		log.Println(ErrInvalidRPCMessageType)
+		return ErrInvalidRPCMessageType
+	}
+
 	// TODO: Remove
-	fmt.Printf("CallPayload: %+v\nPayloadSize: %d\nParamSize: %d\n\n", payload, bytesRead, len(record)-bytesRead)
+	log.Printf("CallPayload: %+v PayloadSize: %d ParamSize: %d", call, bytesRead, len(record)-bytesRead)
 
 	// Set req.Seq and req.ServiceMethod
-	req.Seq = uint64(payload.Header.Xid)
-	procedureID := ProcedureID{payload.Body.Program, payload.Body.Version, payload.Body.Procedure}
+	req.Seq = uint64(call.Header.Xid)
+	procedureID := ProcedureID{call.Body.Program, call.Body.Version, call.Body.Procedure}
 	procedureName, ok := GetProcedureName(procedureID)
 	if ok {
 		req.ServiceMethod = procedureName
 	} else {
-		// Reply with standard RPC error
+		// Due to our simpler map implementation, we cannot distinguish
+		// between ErrProgUnavail and ErrProcUnavail
+		log.Println(ErrProcUnavail)
+		return ErrProcUnavail
 	}
 
 	return nil
@@ -59,7 +72,6 @@ func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
 func (c *serverCodec) ReadRequestBody(funcArgs interface{}) error {
 
 	if funcArgs == nil {
-		// read and drain it out ?
 		return nil
 	}
 
@@ -73,8 +85,6 @@ func (c *serverCodec) ReadRequestBody(funcArgs interface{}) error {
 func (c *serverCodec) WriteResponse(resp *rpc.Response, result interface{}) error {
 
 	var buf bytes.Buffer
-
-	// TODO: Error handling and error reply
 
 	replyMessage := RPCMsgReply{
 		Header: RPCMessageHeader{

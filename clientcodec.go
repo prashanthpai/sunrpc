@@ -118,6 +118,45 @@ func (c *clientCodec) ReadResponseHeader(resp *rpc.Response) error {
 	delete(c.pending, resp.Seq)
 	c.mutex.Unlock()
 
+	if reply.Header.Type != Reply {
+		return ErrInvalidRPCMessageType
+	}
+
+	// Filter out all valid RPC error cases
+	switch reply.Stat {
+	case MsgAccepted:
+		switch reply.Areply.Stat {
+		case Success:
+		case ProgMismatch:
+			return ErrProgMismatch{
+				reply.Areply.MismatchInfo.Low,
+				reply.Areply.MismatchInfo.High}
+		case ProgUnavail:
+			return ErrProgUnavail
+		case ProcUnavail:
+			return ErrProcUnavail
+		case GarbageArgs:
+			return ErrGarbageArgs
+		case SystemErr:
+			return ErrSystemErr
+		default:
+			return ErrInvalidMsgAccepted
+		}
+	case MsgDenied:
+		switch reply.Rreply.Stat {
+		case RPCMismatch:
+			return ErrRPCMismatch{
+				reply.Rreply.MismatchInfo.Low,
+				reply.Rreply.MismatchInfo.High}
+		case AuthError:
+			return ErrAuthError
+		default:
+			return ErrInvalidMsgDeniedType
+		}
+	default:
+		return ErrInvalidRPCRepyType
+	}
+
 	return nil
 }
 

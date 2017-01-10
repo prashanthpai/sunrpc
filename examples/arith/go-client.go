@@ -41,13 +41,13 @@ func main() {
 
 	err = client.Call("Arith.Add", args, &reply)
 	if err != nil {
-		log.Fatal("client.Call() failed: ", err)
+		log.Print("client.Call() failed: ", err)
 	}
 	fmt.Printf("Arith Add: %d + %d = %d\n", args.A, args.B, reply)
 
 	err = client.Call("Arith.Multiply", args, &reply)
 	if err != nil {
-		log.Fatal("client.Call() failed: ", err)
+		log.Print("client.Call() failed: ", err)
 	}
 	fmt.Printf("Arith Multiply: %d * %d = %d\n", args.A, args.B, reply)
 }
