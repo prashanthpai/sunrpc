@@ -59,7 +59,7 @@ func CmuxMatcher(progAndVersion ...uint32) func(io.Reader) bool {
 		if header.MsgType != int32(Call) {
 			return false
 		}
-		if header.RPCVersion != RPCVersionSupported {
+		if header.RPCVersion != rpcVersionSupported {
 			return false
 		}
 		if header.Version == uint32(0) {

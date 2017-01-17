@@ -1,6 +1,8 @@
 # sunrpc
 
-This project aims to implement ONC RPC (Sun RPC) as described in
+[![GoDoc](https://godoc.org/github.com/prashanthpai/sunrpc?status.svg)](https://godoc.org/github.com/prashanthpai/sunrpc)
+
+This project implements ONC RPC (Sun RPC) as described in
 [RFC 5531](https://tools.ietf.org/html/rfc5531) in Go lang, primarily to be
 consumed as a [ServerCodec](https://golang.org/pkg/net/rpc/#ServerCodec) and
 [ClientCodec](https://golang.org/pkg/net/rpc/#ClientCodec)
