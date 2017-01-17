@@ -31,7 +31,9 @@ func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
 	// Read entire RPC message from network
 	record, err := ReadFullRecord(c.conn)
 	if err != nil {
-		log.Println(err)
+		if err != io.EOF {
+			log.Println(err)
+		}
 		return err
 	}
 
@@ -39,7 +41,7 @@ func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
 
 	// Unmarshall RPC message
 	var call RPCMsgCall
-	bytesRead, err := xdr.Unmarshal(c.recordReader, &call)
+	_, err = xdr.Unmarshal(c.recordReader, &call)
 	if err != nil {
 		log.Println(err)
 		return err
@@ -49,9 +51,6 @@ func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
 		log.Println(ErrInvalidRPCMessageType)
 		return ErrInvalidRPCMessageType
 	}
-
-	// TODO: Remove
-	log.Printf("CallPayload: %+v PayloadSize: %d ParamSize: %d", call, bytesRead, len(record)-bytesRead)
 
 	// Set req.Seq and req.ServiceMethod
 	req.Seq = uint64(call.Header.Xid)

@@ -48,7 +48,7 @@ func (t *GfHandshake) ServerGetspec(args *GfGetspecReq, reply *GfGetspecRsp) err
 		goto Out
 	}
 
-	fileContents, err = ioutil.ReadFile("/home/ppai/trusted-test.tcp-fuse.vol")
+	fileContents, err = ioutil.ReadFile("/var/lib/glusterd/vols/test/trusted-test.tcp-fuse.vol")
 	if err != nil {
 		fmt.Println(err)
 		goto Out

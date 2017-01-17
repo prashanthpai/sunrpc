@@ -175,8 +175,5 @@ func (c *clientCodec) ReadResponseBody(result interface{}) error {
 }
 
 func (c *clientCodec) Close() error {
-	if tc, ok := c.conn.(*net.TCPConn); ok {
-		return tc.CloseRead()
-	}
 	return c.conn.Close()
 }

@@ -8,7 +8,3 @@ consumed as a [ServerCodec](https://golang.org/pkg/net/rpc/#ServerCodec) and
 The initial goal here is limited to enabling existing projects written in C
 and uses Sun RPC to be able to communicate with a server written in Go without
 the need for C projects to change their existing code.
-
-### TODO
-* Use UDP for all client communication with portmapper
-* Propagate errors back to client while processing RPC header
