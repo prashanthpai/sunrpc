@@ -11,7 +11,8 @@ import (
 
 // Internal errors
 var (
-	ErrInvalidFragmentSize = errors.New("The RPC fragment size is invalid")
+	ErrInvalidFragmentSize    = errors.New("The RPC fragment size is invalid")
+	ErrRPCMessageSizeExceeded = errors.New("The RPC message size is too big")
 )
 
 // RPC errors

@@ -29,6 +29,9 @@ const (
 	// The entire RPC message (record) has no size restriction imposed
 	// by RFC 5531. Refer: include/linux/sunrpc/msg_prot.h
 	maxRecordFragmentSize = (1 << 31) - 1
+
+	// Max size of RPC message that a client is allowed to send.
+	maxRecordSize = 1 * 1024 * 1024
 )
 
 func isLastFragment(fragmentHeader uint32) bool {
@@ -116,8 +119,11 @@ func WriteFullRecord(conn io.Writer, data []byte) (int64, error) {
 // a []byte sequence which contains the record.
 func ReadFullRecord(conn io.Reader) ([]byte, error) {
 
+	// In almost all cases, RPC message contain only one fragment which
+	// is not too big in size. But set a cap on buffer size to prevent
+	// rogue clients from filling up memory.
+	record := bytes.NewBuffer(make([]byte, 0, maxRecordSize))
 	var fragmentHeader uint32
-	record := new(bytes.Buffer)
 	for {
 		// Read record fragment header
 		err := binary.Read(conn, binary.BigEndian, &fragmentHeader)
@@ -128,6 +134,10 @@ func ReadFullRecord(conn io.Reader) ([]byte, error) {
 		fragmentSize := getFragmentSize(fragmentHeader)
 		if fragmentSize > maxRecordFragmentSize {
 			return nil, ErrInvalidFragmentSize
+		}
+
+		if int(fragmentSize) > (record.Cap() - record.Len()) {
+			return nil, ErrRPCMessageSizeExceeded
 		}
 
 		// Copy fragment body (data) from network to buffer
