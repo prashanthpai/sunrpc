@@ -65,7 +65,6 @@ func minOf(a, b int64) int64 {
 func WriteFullRecord(conn io.Writer, data []byte) (int64, error) {
 
 	dataSize := int64(len(data))
-	dataReader := bytes.NewReader(data)
 
 	var totalBytesWritten int64
 	var lastFragment bool
@@ -81,27 +80,8 @@ func WriteFullRecord(conn io.Writer, data []byte) (int64, error) {
 		// Create fragment header
 		binary.BigEndian.PutUint32(fragmentHeaderBytes, createFragmentHeader(fragmentSize, lastFragment))
 
-		// Create buffer. Why ? There is weird bug in implementation
-		// of rpcbind. If rpcbind revieves record fragment header and
-		// fragment body in different TCP segments, then rpcbind closes
-		// the client connection. This can be observed using tcpdump
-		// captures.
-		buffer := bytes.NewBuffer(make([]byte, 0, 4+int(fragmentSize)))
-
-		// Copy fragment header to buffer
-		bytesCopied, err := io.CopyN(buffer, bytes.NewReader(fragmentHeaderBytes), int64(4))
-		if err != nil || (bytesCopied != int64(4)) {
-			return 0, err
-		}
-
-		// Copy fragment body to buffer
-		bytesCopied, err = io.CopyN(buffer, dataReader, int64(fragmentSize))
-		if err != nil || (bytesCopied != int64(fragmentSize)) {
-			return 0, err
-		}
-
-		// Write buffer to network
-		bytesWritten, err := conn.Write(buffer.Bytes())
+		// Write fragment header and fragment body to network
+		bytesWritten, err := conn.Write(append(fragmentHeaderBytes, data[totalBytesWritten:fragmentSize]...))
 		if err != nil {
 			return int64(totalBytesWritten), err
 		}
