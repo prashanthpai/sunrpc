@@ -61,7 +61,7 @@ func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
 	} else {
 		// Due to our simpler map implementation, we cannot distinguish
 		// between ErrProgUnavail and ErrProcUnavail
-		log.Println(ErrProcUnavail)
+		log.Printf("%s: %+v\n", ErrProcUnavail, procedureID)
 		return ErrProcUnavail
 	}
 
