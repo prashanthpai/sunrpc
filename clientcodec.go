@@ -81,9 +81,11 @@ func (c *clientCodec) WriteRequest(req *rpc.Request, param interface{}) error {
 		return err
 	}
 
-	// Marshall actual params/args of the remote procedure
-	if _, err := xdr.Marshal(payload, &param); err != nil {
-		return err
+	if param != nil {
+		// Marshall actual params/args of the remote procedure
+		if _, err := xdr.Marshal(payload, &param); err != nil {
+			return err
+		}
 	}
 
 	// Write payload to network

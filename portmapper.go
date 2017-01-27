@@ -140,13 +140,21 @@ func PmapGetPort(host string, programNumber, programVersion uint32, protocol Pro
 	return port, err
 }
 
+type portMappingList struct {
+	Map  PortMapping
+	Next *portMappingList `xdr:"optional"`
+}
+
+type getMapsReply struct {
+	Next *portMappingList `xdr:"optional"`
+}
+
 // PmapGetMaps returns a list of PortMapping entries present in portmapper's
 // database. If host is empty string, localhost is used.
 func PmapGetMaps(host string) ([]PortMapping, error) {
 
-	// TODO: This is just boilerplate code, does not work.
-
 	var mappings []PortMapping
+	var result getMapsReply
 
 	client := initPmapClient(host)
 	if client == nil {
@@ -154,6 +162,22 @@ func PmapGetMaps(host string) ([]PortMapping, error) {
 	}
 	defer client.Close()
 
-	err := client.Call("Pmap.ProcDump", nil, &mappings)
-	return mappings, err
+	err := client.Call("Pmap.ProcDump", nil, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	if result.Next != nil {
+		trav := result.Next
+		for {
+			entry := PortMapping(trav.Map)
+			mappings = append(mappings, entry)
+			trav = trav.Next
+			if trav == nil {
+				break
+			}
+		}
+	}
+
+	return mappings, nil
 }
