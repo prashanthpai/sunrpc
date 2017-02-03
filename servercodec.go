@@ -15,6 +15,7 @@ import (
 
 type serverCodec struct {
 	conn         io.ReadWriteCloser
+	closed       bool
 	recordReader io.Reader
 }
 
@@ -24,9 +25,10 @@ func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
 }
 
 func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
-	// FIXME:
-	// Errors returned here aren't relayed back to client via WriteResponse
-	// Will need some minor changes in net/rpc package to support this.
+	// NOTE:
+	// Errors returned by this function aren't relayed back to the client
+	// as WriteResponse() isn't called. The net/rpc package will call
+	// c.Close() when this function returns an error.
 
 	// Read entire RPC message from network
 	record, err := ReadFullRecord(c.conn)
@@ -75,6 +77,7 @@ func (c *serverCodec) ReadRequestBody(funcArgs interface{}) error {
 	}
 
 	if _, err := xdr.Unmarshal(c.recordReader, &funcArgs); err != nil {
+		c.Close()
 		return err
 	}
 
@@ -82,6 +85,11 @@ func (c *serverCodec) ReadRequestBody(funcArgs interface{}) error {
 }
 
 func (c *serverCodec) WriteResponse(resp *rpc.Response, result interface{}) error {
+
+	if resp.Error != "" {
+		// The remote function returned error (shouldn't really happen)
+		log.Println(resp.Error)
+	}
 
 	var buf bytes.Buffer
 
@@ -97,16 +105,19 @@ func (c *serverCodec) WriteResponse(resp *rpc.Response, result interface{}) erro
 	}
 
 	if _, err := xdr.Marshal(&buf, replyMessage); err != nil {
+		c.Close()
 		return err
 	}
 
 	// Marshal and fill procedure-specific reply into the buffer
 	if _, err := xdr.Marshal(&buf, result); err != nil {
+		c.Close()
 		return err
 	}
 
 	// Write buffer contents to network
 	if _, err := WriteFullRecord(c.conn, buf.Bytes()); err != nil {
+		c.Close()
 		return err
 	}
 
@@ -114,5 +125,9 @@ func (c *serverCodec) WriteResponse(resp *rpc.Response, result interface{}) erro
 }
 
 func (c *serverCodec) Close() error {
+	if c.closed {
+		return nil
+	}
+	c.closed = true
 	return c.conn.Close()
 }
