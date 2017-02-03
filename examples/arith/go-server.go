@@ -47,15 +47,9 @@ func main() {
 
 	notifyClose := make(chan io.ReadWriteCloser, 5)
 	go func() {
-		for {
-			select {
-			case rwc, ok := <-notifyClose:
-				if ok {
-					conn := rwc.(net.Conn)
-					log.Printf("Client %s disconnected", conn.RemoteAddr().String())
-				}
-			default:
-			}
+		for rwc := range notifyClose {
+			conn := rwc.(net.Conn)
+			log.Printf("Client %s disconnected", conn.RemoteAddr().String())
 		}
 	}()
 
