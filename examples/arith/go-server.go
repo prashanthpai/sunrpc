@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"log"
 	"net"
 	"net/rpc"
@@ -44,12 +45,27 @@ func main() {
 		log.Fatal("sunrpc.PmapSet() failed: ", err)
 	}
 
+	notifyClose := make(chan io.ReadWriteCloser, 5)
+	go func() {
+		for {
+			select {
+			case rwc, ok := <-notifyClose:
+				if ok {
+					conn := rwc.(net.Conn)
+					log.Printf("Client %s disconnected", conn.RemoteAddr().String())
+				}
+			default:
+			}
+		}
+	}()
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Fatal("listener.Accept() failed: ", err)
 		}
+		log.Printf("Client %s connected", conn.RemoteAddr().String())
 		// Use sunrpc's codec to handle incoming client connections
-		go server.ServeCodec(sunrpc.NewServerCodec(conn))
+		go server.ServeCodec(sunrpc.NewServerCodec(conn, notifyClose))
 	}
 }

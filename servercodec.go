@@ -16,12 +16,15 @@ import (
 type serverCodec struct {
 	conn         io.ReadWriteCloser
 	closed       bool
+	notifyClose  chan<- io.ReadWriteCloser
 	recordReader io.Reader
 }
 
-// NewServerCodec returns a new rpc.ServerCodec using Sun RPC on conn
-func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
-	return &serverCodec{conn: conn}
+// NewServerCodec returns a new rpc.ServerCodec using Sun RPC on conn.
+// If a non-nil channel is passed as second argument, the conn is sent on
+// that channel when Close() is called on conn.
+func NewServerCodec(conn io.ReadWriteCloser, notifyClose chan<- io.ReadWriteCloser) rpc.ServerCodec {
+	return &serverCodec{conn: conn, notifyClose: notifyClose}
 }
 
 func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
@@ -128,6 +131,14 @@ func (c *serverCodec) Close() error {
 	if c.closed {
 		return nil
 	}
-	c.closed = true
-	return c.conn.Close()
+
+	err := c.conn.Close()
+	if err == nil {
+		c.closed = true
+		if c.notifyClose != nil {
+			c.notifyClose <- c.conn
+		}
+	}
+
+	return err
 }
