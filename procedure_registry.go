@@ -27,6 +27,12 @@ type ProcedureID struct {
 	ProcedureNumber uint32
 }
 
+// Procedure represents a ProcedureID and name pair.
+type Procedure struct {
+	ID   ProcedureID
+	Name string
+}
+
 // pMap is looked up in ServerCodec to map ProcedureID to method name.
 // rMap is looked up in ClientCodec to map method name to ProcedureID.
 var procedureRegistry = struct {
@@ -61,20 +67,18 @@ func isValidProcedureName(procedureName string) bool {
 	return true
 }
 
-// RegisterProcedure will register the procedure name which will be uniquely
-// indentified by (ProgramNumber, ProgramVersion, ProcedureNumber) pair.
-func RegisterProcedure(procedureID ProcedureID, procedureName string) error {
+// RegisterProcedure will register the procedure in the registry
+func RegisterProcedure(procedure Procedure) error {
 
-	if !isValidProcedureName(procedureName) {
+	if !isValidProcedureName(procedure.Name) {
 		return errors.New("Invalid procedure name")
 	}
 
 	procedureRegistry.Lock()
 	defer procedureRegistry.Unlock()
 
-	procedureRegistry.pMap[procedureID] = procedureName
-	// Create reverse mapping too
-	procedureRegistry.rMap[procedureName] = procedureID
+	procedureRegistry.pMap[procedure.ID] = procedure.Name
+	procedureRegistry.rMap[procedure.Name] = procedure.ID
 	return nil
 }
 
@@ -88,9 +92,9 @@ func GetProcedureName(procedureID ProcedureID) (string, bool) {
 	return procedureName, ok
 }
 
-// GetProcedureID will return a struct containing (ProgramNumber, ProgramVersion, ProcedureNumber)
-// pair, given the method name. It also returns a bool which is set to true only if the procedure
-// is found in registry.
+// GetProcedureID will return ProcedureID given the procedure name. It also
+// returns a bool which is set to true only if the procedure is found in
+// the registry.
 func GetProcedureID(procedureName string) (ProcedureID, bool) {
 	procedureRegistry.RLock()
 	defer procedureRegistry.RUnlock()

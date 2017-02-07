@@ -55,7 +55,7 @@ func initRegistry() {
 
 	for id, procName := range remoteProcedures {
 		procedureID.ProcedureNumber = uint32(id)
-		_ = RegisterProcedure(procedureID, procName)
+		_ = RegisterProcedure(Procedure{procedureID, procName})
 	}
 }
 
