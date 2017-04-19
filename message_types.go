@@ -88,14 +88,6 @@ type OpaqueAuth struct {
 	Body   []byte
 }
 
-// RPCMessageHeader contains the transaction ID and the RPC message type.
-type RPCMessageHeader struct {
-	Xid  uint32
-	Type MsgType
-}
-
-/* CALL structs */
-
 // CallBody represents the body of a RPC Call
 type CallBody struct {
 	RPCVersion uint32     // must be equal to 2
@@ -105,15 +97,6 @@ type CallBody struct {
 	Cred       OpaqueAuth // Authentication credential
 	Verf       OpaqueAuth // Authentication verifier
 }
-
-// RPCMsgCall contains a RPC Message Call
-type RPCMsgCall struct {
-	Header RPCMessageHeader
-	Body   CallBody
-	// procedure-specific parameters start here
-}
-
-/* REPLY structs */
 
 // MismatchReply is used in ProgMismatch and RPCMismatch cases to denote
 // lowest and highest version of RPC version or program version supported
@@ -141,10 +124,17 @@ type RejectedReply struct {
 	AuthStat     AuthStat      `xdr:"unioncase=1"` // AuthError
 }
 
-// RPCMsgReply represents a generic RPC reply to a `Call`
-type RPCMsgReply struct {
-	Header RPCMessageHeader
+// ReplyBody represents a generic RPC reply to a `Call`
+type ReplyBody struct {
 	Stat   ReplyStat     `xdr:"union"`
 	Areply AcceptedReply `xdr:"unioncase=0"`
 	Rreply RejectedReply `xdr:"unioncase=1"`
+}
+
+// RPCMsg represents a complete RPC message (call or reply)
+type RPCMsg struct {
+	Xid   uint32
+	Type  MsgType   `xdr:"union"`
+	CBody CallBody  `xdr:"unioncase=0"`
+	RBody ReplyBody `xdr:"unioncase=1"`
 }

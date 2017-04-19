@@ -63,11 +63,10 @@ func (c *clientCodec) WriteRequest(req *rpc.Request, param interface{}) error {
 	c.mutex.Unlock()
 
 	// Encapsulate rpc.Request.Seq and rpc.Request.ServiceMethod
-	rpcBody := RPCMsgCall{
-		Header: RPCMessageHeader{
-			Xid:  uint32(req.Seq),
-			Type: Call},
-		Body: CallBody{
+	call := RPCMsg{
+		Xid:  uint32(req.Seq),
+		Type: Call,
+		CBody: CallBody{
 			RPCVersion: rpcVersionSupported,
 			Program:    procedureID.ProgramNumber,
 			Version:    procedureID.ProgramVersion,
@@ -77,7 +76,7 @@ func (c *clientCodec) WriteRequest(req *rpc.Request, param interface{}) error {
 
 	payload := new(bytes.Buffer)
 
-	if _, err := xdr.Marshal(payload, &rpcBody); err != nil {
+	if _, err := xdr.Marshal(payload, &call); err != nil {
 		return err
 	}
 
@@ -108,31 +107,31 @@ func (c *clientCodec) ReadResponseHeader(resp *rpc.Response) error {
 	c.recordReader = bytes.NewReader(record)
 
 	// Unmarshal record as RPC reply
-	var reply RPCMsgReply
+	var reply RPCMsg
 	if _, err = xdr.Unmarshal(c.recordReader, &reply); err != nil {
 		return err
 	}
 
 	// Unpack rpc.Request.Seq and set rpc.Request.ServiceMethod
-	resp.Seq = uint64(reply.Header.Xid)
+	resp.Seq = uint64(reply.Xid)
 	c.mutex.Lock()
 	resp.ServiceMethod = c.pending[resp.Seq]
 	delete(c.pending, resp.Seq)
 	c.mutex.Unlock()
 
-	if reply.Header.Type != Reply {
+	if reply.Type != Reply {
 		return ErrInvalidRPCMessageType
 	}
 
 	// Filter out all valid RPC error cases
-	switch reply.Stat {
+	switch reply.RBody.Stat {
 	case MsgAccepted:
-		switch reply.Areply.Stat {
+		switch reply.RBody.Areply.Stat {
 		case Success:
 		case ProgMismatch:
 			return ErrProgMismatch{
-				reply.Areply.MismatchInfo.Low,
-				reply.Areply.MismatchInfo.High}
+				reply.RBody.Areply.MismatchInfo.Low,
+				reply.RBody.Areply.MismatchInfo.High}
 		case ProgUnavail:
 			return ErrProgUnavail
 		case ProcUnavail:
@@ -145,11 +144,11 @@ func (c *clientCodec) ReadResponseHeader(resp *rpc.Response) error {
 			return ErrInvalidMsgAccepted
 		}
 	case MsgDenied:
-		switch reply.Rreply.Stat {
+		switch reply.RBody.Rreply.Stat {
 		case RPCMismatch:
 			return ErrRPCMismatch{
-				reply.Rreply.MismatchInfo.Low,
-				reply.Rreply.MismatchInfo.High}
+				reply.RBody.Rreply.MismatchInfo.Low,
+				reply.RBody.Rreply.MismatchInfo.High}
 		case AuthError:
 			return ErrAuthError
 		default:

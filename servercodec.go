@@ -45,21 +45,21 @@ func (c *serverCodec) ReadRequestHeader(req *rpc.Request) error {
 	c.recordReader = bytes.NewReader(record)
 
 	// Unmarshall RPC message
-	var call RPCMsgCall
+	var call RPCMsg
 	_, err = xdr.Unmarshal(c.recordReader, &call)
 	if err != nil {
 		log.Println(err)
 		return err
 	}
 
-	if call.Header.Type != Call {
+	if call.Type != Call {
 		log.Println(ErrInvalidRPCMessageType)
 		return ErrInvalidRPCMessageType
 	}
 
 	// Set req.Seq and req.ServiceMethod
-	req.Seq = uint64(call.Header.Xid)
-	procedureID := ProcedureID{call.Body.Program, call.Body.Version, call.Body.Procedure}
+	req.Seq = uint64(call.Xid)
+	procedureID := ProcedureID{call.CBody.Program, call.CBody.Version, call.CBody.Procedure}
 	procedureName, ok := GetProcedureName(procedureID)
 	if ok {
 		req.ServiceMethod = procedureName
@@ -96,18 +96,18 @@ func (c *serverCodec) WriteResponse(resp *rpc.Response, result interface{}) erro
 
 	var buf bytes.Buffer
 
-	replyMessage := RPCMsgReply{
-		Header: RPCMessageHeader{
-			Xid:  uint32(resp.Seq),
-			Type: Reply,
-		},
-		Stat: MsgAccepted,
-		Areply: AcceptedReply{
-			Stat: Success,
+	reply := RPCMsg{
+		Xid:  uint32(resp.Seq),
+		Type: Reply,
+		RBody: ReplyBody{
+			Stat: MsgAccepted,
+			Areply: AcceptedReply{
+				Stat: Success,
+			},
 		},
 	}
 
-	if _, err := xdr.Marshal(&buf, replyMessage); err != nil {
+	if _, err := xdr.Marshal(&buf, reply); err != nil {
 		c.Close()
 		return err
 	}
