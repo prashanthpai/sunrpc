@@ -4,7 +4,8 @@
 
 package sunrpc
 
-const rpcVersionSupported = 2
+// RPCProtocolVersion is the version of RPC protocol as described in RFC 5531
+const RPCProtocolVersion = 2
 
 // As per XDR (RFC 4506):
 // Enumerations have the same representation as 32 bit signed integers.

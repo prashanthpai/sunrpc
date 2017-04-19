@@ -67,7 +67,7 @@ func (c *clientCodec) WriteRequest(req *rpc.Request, param interface{}) error {
 		Xid:  uint32(req.Seq),
 		Type: Call,
 		CBody: CallBody{
-			RPCVersion: rpcVersionSupported,
+			RPCVersion: RPCProtocolVersion,
 			Program:    procedureID.ProgramNumber,
 			Version:    procedureID.ProgramVersion,
 			Procedure:  procedureID.ProcedureNumber,
