@@ -17,6 +17,7 @@ import (
 type clientCodec struct {
 	conn         io.ReadWriteCloser // network connection
 	recordReader io.Reader          // reader for RPC record
+	notifyClose  chan<- io.ReadWriteCloser
 
 	// Sun RPC responses include Seq (XID) but not ServiceMethod (procedure
 	// number). Go package net/rpc expects both. So we save ServiceMethod
@@ -25,17 +26,20 @@ type clientCodec struct {
 	pending map[uint64]string // maps Seq (XID) to ServiceMethod
 }
 
-// NewClientCodec returns a new rpc.ClientCodec using Sun RPC on conn
-func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
+// NewClientCodec returns a new rpc.ClientCodec using Sun RPC on conn.
+// If a non-nil channel is passed as second argument, the conn is sent on
+// that channel when Close() is called on conn.
+func NewClientCodec(conn io.ReadWriteCloser, notifyClose chan<- io.ReadWriteCloser) rpc.ClientCodec {
 	return &clientCodec{
-		conn:    conn,
-		pending: make(map[uint64]string),
+		conn:        conn,
+		notifyClose: notifyClose,
+		pending:     make(map[uint64]string),
 	}
 }
 
 // NewClient returns a new rpc.Client which internally uses Sun RPC codec
 func NewClient(conn io.ReadWriteCloser) *rpc.Client {
-	return rpc.NewClientWithCodec(NewClientCodec(conn))
+	return rpc.NewClientWithCodec(NewClientCodec(conn, nil))
 }
 
 // Dial connects to a Sun-RPC server at the specified network address
@@ -90,6 +94,9 @@ func (c *clientCodec) WriteRequest(req *rpc.Request, param interface{}) error {
 	// Write payload to network
 	_, err := WriteFullRecord(c.conn, payload.Bytes())
 	if err != nil {
+		if err == io.EOF && c.notifyClose != nil {
+			c.notifyClose <- c.conn
+		}
 		return err
 	}
 
@@ -101,6 +108,9 @@ func (c *clientCodec) ReadResponseHeader(resp *rpc.Response) error {
 	// Read entire RPC message from network
 	record, err := ReadFullRecord(c.conn)
 	if err != nil {
+		if err == io.EOF && c.notifyClose != nil {
+			c.notifyClose <- c.conn
+		}
 		return err
 	}
 

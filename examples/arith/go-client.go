@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/rpc"
@@ -36,8 +37,17 @@ func main() {
 		log.Fatal("net.Dial() failed: ", err)
 	}
 
+	// Get notified on server closes the connection
+	notifyClose := make(chan io.ReadWriteCloser, 5)
+	go func() {
+		for rwc := range notifyClose {
+			conn := rwc.(net.Conn)
+			log.Printf("Server %s disconnected", conn.RemoteAddr().String())
+		}
+	}()
+
 	// Create client using sunrpc codec
-	client := rpc.NewClientWithCodec(sunrpc.NewClientCodec(conn))
+	client := rpc.NewClientWithCodec(sunrpc.NewClientCodec(conn, notifyClose))
 
 	// Remote function's arguments and results placeholder
 	args := Args{7, 8}

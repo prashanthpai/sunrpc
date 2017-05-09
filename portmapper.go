@@ -71,7 +71,7 @@ func initPmapClient(host string) *rpc.Client {
 		return nil
 	}
 
-	return rpc.NewClientWithCodec(NewClientCodec(conn))
+	return rpc.NewClientWithCodec(NewClientCodec(conn, nil))
 }
 
 // PmapSet creates port mapping of the program specified. It return true on
