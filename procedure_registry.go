@@ -67,10 +67,10 @@ func isValidProcedureName(procedureName string) bool {
 	return true
 }
 
-// RegisterProcedure will register the procedure in the registry
-func RegisterProcedure(procedure Procedure) error {
+// RegisterProcedure will register the procedure in the registry.
+func RegisterProcedure(procedure Procedure, validateProcName bool) error {
 
-	if !isValidProcedureName(procedure.Name) {
+	if validateProcName && !isValidProcedureName(procedure.Name) {
 		return errors.New("Invalid procedure name")
 	}
 
